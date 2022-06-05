@@ -16,11 +16,11 @@ def handle(req, syscall):
     return result
 
 def app_handle(args, context, syscall):
-    test_lines = [ json.loads(line) for line in syscall.read_key(bytes(args["test_results"], "utf-8")).split(b'\n') ]
+    test_lines = [ json.loads(line) for line in syscall.fsread(args['test_results']).split(b'\n') ]
     test_runs = dict((line['test'], line) for line in test_lines if 'test' in line)
 
-    grader_config = "cos316/%s/grader_config" % context["metadata"]["assignment"]
-    config = json.loads(syscall.read_key(bytes(grader_config, "utf-8")))
+    grader_config = "/cos316/%s/grader_config.json" % context["metadata"]["assignment"]
+    config = json.loads(syscall.fsread(grader_config))
 
     total_points = sum([ test["points"] for test in config["tests"].values() if "extraCredit" not in test or not test["extraCredit"]])
 
@@ -45,10 +45,17 @@ def app_handle(args, context, syscall):
         "push_date": context["push_date"]
     }
 
-    key = os.path.join(os.path.dirname(args["test_results"]),"grade.json")
-    syscall.write_key(bytes(key, "utf-8"), bytes(json.dumps(output), "utf-8"))
+    user = context['user']
+    func = context['function']
+    base_dir = os.path.join('/', func, user, context['metadata']['assignment'])
+    file = os.path.join(base_dir, 'grade.json')
+    syscall.endorse_with([[func]])
+    target_label = syscall.new_dclabel([[user]], [[func]])
+    syscall.fscreate_dir(os.path.dirname(base_dir), os.path.basename(base_dir), target_label)
+    syscall.fscreate_file(base_dir, os.path.basename(file), target_label)
+    syscall.fswrite(file, bytes(json.dumps(output), "utf-8"))
 
     return {
         "grade": points / total_points,
-        "grade_report": key
+        "grade_report": file
         }
