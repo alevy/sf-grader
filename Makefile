@@ -50,13 +50,13 @@ prepfs: output/example_grader.tgz output/example_submission.tgz example_grader/g
 
 
 run/%: output/%.img payloads/%.jsonl python3.ext4
-	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* < payloads/$*.jsonl
+	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* --end_users user < payloads/$*.jsonl
 	@touch $@
 
 .PHONY: debug/%
 debug/%: export RUST_LOG=debug
 debug/%: output/%.img payloads/%.jsonl python3.ext4
-	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* --kernel_args "console=ttyS0" < payloads/$*.jsonl
+	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* --end_users user --kernel_args "console=ttyS0" < payloads/$*.jsonl
 
 .PHONY: clean
 clean:

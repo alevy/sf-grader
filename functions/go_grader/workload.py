@@ -22,7 +22,8 @@ def app_handle(args, context, syscall):
     # Fetch and untar submission tarball
     assignment = context["metadata"]["assignment"]
     with tempfile.NamedTemporaryFile(suffix=".tar.gz") as submission_tar:
-        submission_tar_data = syscall.fsread(args['submission'])
+        submission_tar_data = syscall.fs_read(args['submission'])
+        secrecy = syscall.get_current_label().secrecy
         submission_tar.write(submission_tar_data)
         submission_tar.flush()
         with tempfile.TemporaryDirectory() as submission_dir:
@@ -30,7 +31,7 @@ def app_handle(args, context, syscall):
 
             # Fetch and untar grading script tarball
             with tempfile.NamedTemporaryFile(suffix=".tar.gz") as script_tar:
-                script_tar_data = syscall.fsread('/cos316/%s/grading_script' % assignment)
+                script_tar_data = syscall.fs_read('/cos316/%s/grading_script' % assignment)
                 script_tar.write(script_tar_data)
                 script_tar.flush()
                 with tempfile.TemporaryDirectory() as script_dir:
@@ -59,17 +60,14 @@ def app_handle(args, context, syscall):
                             final_results.append(json.dumps(tr))
 #                    key = os.path.join(os.path.splitext(args["submission"])[0], "test_results.jsonl")
                     submission = os.path.basename(os.path.splitext(args['submission'])[0])
-                    user = context['user']
-                    func = context['function']
-                    file = '/go_grader/%s/%s/test_results.jsonl' % (user, submission)
-                    syscall.endorse_with([[func]])
-                    syscall.declassify_to([[user]])
-                    syscall.fscreate_dir('/go_grader/%s' % user, submission, syscall.new_dclabel([[user]], [[func]]))
-                    syscall.fscreate_file('/go_grader/%s/%s' % (user, submission), os.path.basename(file), syscall.new_dclabel([[user]], [[func]]))
-                    syscall.fswrite(file, bytes('\n'.join(final_results), "utf-8"))
+                    file = 'test_results.jsonl'
+                    syscall.declassify(secrecy)
+                    syscall.workspace_createdir(submission)
+                    syscall.workspace_createfile(file, submission)
+                    syscall.workspace_write(os.path.join(submission, file), bytes('\n'.join(final_results), "utf-8"))
                     testrun.wait()
                     if testrun.returncode >= 0:
-                        return { "test_results": file }
+                        return { "test_results": syscall.workspace_abspath(os.path.join(submission, file))}
                     else:
                         _, errlog = testrun.communicate()
                         return { "error": { "testrun": str(errlog), "returncode": testrun.returncode } }
