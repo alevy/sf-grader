@@ -1,1 +1,1 @@
-{"args": {"submission": "submission.tgz"}, "workflow": [ "grades", "generate_report" ], "context": { "metadata": {"assignment": "example"}}}
+{"args": {"submission": "github/cos316/example/submission.tgz"}, "workflow": [ "grades", "generate_report" ], "context": { "metadata": {"assignment": "example"}}}
