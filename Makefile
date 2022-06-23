@@ -56,7 +56,8 @@ run/%: output/%.img payloads/%.jsonl python3.ext4
 .PHONY: debug/%
 debug/%: export RUST_LOG=debug
 debug/%: output/%.img payloads/%.jsonl python3.ext4
-	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* --end_users user --kernel_args "console=ttyS0" < payloads/$*.jsonl
+	@singlevm --mem_size 1024 --kernel vmlinux-4.20.0 --rootfs python3.ext4 --appfs output/$*.img --function $* --secrecy user --integrity user --kernel_args "console=ttyS0" \
+		--data test_results:1e38cb34f3a86d9cfadcb735cb92e6869a2ee3f3b952ca30d1d78c5d6ac4e1c0 < payloads/$*.jsonl
 
 .PHONY: clean
 clean:

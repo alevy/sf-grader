@@ -3,27 +3,28 @@ import tempfile
 import os
 import subprocess
 
-def handle(req, syscall):
+def handle(req, data_handles, syscall):
     args = req["args"]
     workflow = req["workflow"]
     context = req["context"]
-    result = app_handle(args, context, syscall)
+    result, data_handles_out = app_handle(args, context, syscall)
     if len(workflow) > 0:
         next_function = workflow.pop(0)
         syscall.invoke(next_function, json.dumps({
             "args": result,
             "workflow": workflow,
             "context": context
-        }))
+        }), data_handles_out)
     return result
 
 def app_handle(args, context, syscall):
+    data_handles = dict()
+    secrecy = syscall.get_current_label().secrecy
     os.system("ifconfig lo up")
     # Fetch and untar submission tarball
     assignment = context["metadata"]["assignment"]
     with tempfile.NamedTemporaryFile(suffix=".tar.gz") as submission_tar:
         submission_tar_data = syscall.fs_read(args['submission'])
-        secrecy = syscall.get_current_label().secrecy
         submission_tar.write(submission_tar_data)
         submission_tar.flush()
         with tempfile.TemporaryDirectory() as submission_dir:
@@ -58,17 +59,14 @@ def app_handle(args, context, syscall):
                         if tr["Action"] in ["pass", "fail", "run"]:
                             tr = dict((name.lower(), val) for name, val in tr.items())
                             final_results.append(json.dumps(tr))
-#                    key = os.path.join(os.path.splitext(args["submission"])[0], "test_results.jsonl")
-                    submission = os.path.basename(os.path.splitext(args['submission'])[0])
-                    file = 'test_results.jsonl'
-                    syscall.declassify(secrecy)
-                    syscall.workspace_createdir(submission)
-                    syscall.workspace_createfile(file, submission)
-                    syscall.workspace_write(os.path.join(submission, file), bytes('\n'.join(final_results), "utf-8"))
+                    data = bytes('\n'.join(final_results), "utf-8")
+                    with syscall.create_unnamed(len(data)) as handle:
+                        data_handles['test_results'] = handle.finalize(data)
                     testrun.wait()
+                    syscall.declassify(secrecy)
                     if testrun.returncode >= 0:
-                        return { "test_results": syscall.workspace_abspath(os.path.join(submission, file))}
+                        return {}, data_handles
                     else:
                         _, errlog = testrun.communicate()
-                        return { "error": { "testrun": str(errlog), "returncode": testrun.returncode } }
-    return {}
+                        return { "error": { "testrun": str(errlog), "returncode": testrun.returncode } }, data_handles
+    return {}, data_handles

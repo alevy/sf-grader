@@ -1,4 +1,4 @@
-SNAPFAAS=https://api.github.com/repos/princeton-sns/snapfaas/tarball/syscall
+SNAPFAAS=https://api.github.com/repos/princeton-sns/snapfaas/tarball/faasten
 IMAGES=https://api.github.com/repos/princeton-sns/snapfaas-images/tarball/faasten
 WD=$(dirname $(realpath $0))
 cd $WD
@@ -19,12 +19,12 @@ echo '************************'
 echo '*    getting images    *'
 echo '************************'
 # download the uncompressed kernel
-cp snapfaas/resources/images/vmlinux-4.20.0 . 
+cp snapfaas/resources/images/vmlinux-4.20.0 .
 # build the python3.ext4
 mkdir -p rootfs
 curl -sL -H "Accept: application/vnd.github.v3+json" $IMAGES | \
 tar xzf - -C rootfs --strip-components=2 --wildcards '*/rootfs/common' '*/rootfs/faasten'
-cd rootfs/faasten; ./mk_rtimage.sh --local-snapfaas $(realpath ../../snapfaas) python3 ../../python3.ext4; cd $WD 
+cd rootfs/faasten; ./mk_rtimage.sh --local-snapfaas $(realpath ../../snapfaas) python3 ../../python3.ext4; cd $WD
 if [ ! -f python3.ext4 ] || [ ! -f vmlinux-4.20.0 ]; then
     exit 1
 fi
@@ -37,17 +37,10 @@ make prepfs
 make run/go_grader
 make run/grades
 
-echo
-echo '**************************************'
-echo '*    cating function output files    *'
-echo '**************************************'
-sffs cat /go_grader/user/submission/test_results.jsonl
-sffs cat /grades/user/example/grade.json
-
 #echo '*********************'
 #echo '*    cleaning up    *'
 #echo '*********************'
-rm -r snapfaas 
-rm -rf rootfs
-rm vmlinux-4.20.0
-rm python3.ext4
+#rm -r snapfaas
+#rm -rf rootfs
+#rm vmlinux-4.20.0
+#rm python3.ext4

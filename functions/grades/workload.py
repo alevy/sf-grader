@@ -1,22 +1,32 @@
 import os
 import json
 
-def handle(req, syscall):
+def handle(req, data_handles, syscall):
     args = req["args"]
     workflow = req["workflow"]
     context = req["context"]
-    result = app_handle(args, context, syscall)
+    result, data_handles_out = app_handle(args, context, data_handles, syscall)
     if len(workflow) > 0:
         next_function = workflow.pop(0)
         syscall.invoke(next_function, json.dumps({
             "args": result,
             "workflow": workflow,
             "context": context
-        }))
+        }), data_handles_out)
     return result
 
-def app_handle(args, context, syscall):
-    test_lines = [ json.loads(line) for line in syscall.fs_read(args['test_results']).split(b'\n') ]
+def read_all(opened_blob):
+    buf = bytearray()
+    while True:
+        data = opened_blob.read()
+        if len(data) == 0:
+            return buf
+        buf.extend(data)
+    return buf
+
+def app_handle(args, context, data_handles, syscall):
+    with syscall.open_unnamed(data_handles['test_results']) as blob:
+        test_lines = [ json.loads(line) for line in read_all(blob).split(b'\n') ]
     test_runs = dict((line['test'], line) for line in test_lines if 'test' in line)
 
     grader_config = "/cos316/%s/grader_config.json" % context["metadata"]["assignment"]
@@ -46,12 +56,7 @@ def app_handle(args, context, syscall):
     }
 
     assignment = context['metadata']['assignment']
-    file = 'grade.json'
-    syscall.workspace_createdir(assignment)
-    syscall.workspace_createfile(file, assignment)
-    syscall.workspace_write(os.path.join(assignment, file), bytes(json.dumps(output), "utf-8"))
+    with syscall.create_unnamed() as blob:
+        handle = blob.finalize(bytes(json.dumps(output), "utf-8"))
 
-    return {
-        "grade": points / total_points,
-        "grade_report": syscall.workspace_abspath(os.path.join(assignment, file))
-    }
+    return {"grade": points / total_points}, {"grade_report": handle}

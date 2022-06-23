@@ -20,7 +20,7 @@ wave water resonance sun log dream cherry tree fog
 frost voice paper frog smoke star""".split()
 
 def handle(req, syscall):
-    assignments = json.loads(syscall.fsread('/cos316/assignments'))
+    assignments = json.loads(syscall.fs_read('/cos316/assignments'))
     if req["assignment"] not in assignments:
         return { 'error': 'No such assignment' }
 
@@ -30,7 +30,7 @@ def handle(req, syscall):
         return { 'error': 'This assignment requires a group size of %d, given %d.' % (group_size, len(users)) }
 
     for user in users:
-        repo = syscall.fsread('/%s/%s' % (user, req["assignment"]));
+        repo = syscall.fs_read('/%s/%s' % (user, req["assignment"]));
         if repo:
             return {
                 'error': ("%s is already completing %s at %s" % (user, req['assignment'], repo.decode('utf-8')))
@@ -62,8 +62,8 @@ def handle(req, syscall):
             return { 'error': "Couldn't add user to repository", "status": resp.status }
 
 
-    syscall.fscreate_file('/start_assignment/%s' % name, '_meta', syscall.get_current_label())
-    syscall.fswrite('/start_assignment/%s/_meta' % name,
+    syscall.workspace_createfile('_meta')
+    syscall.workspace_write('_meta' % name,
                       bytes(json.dumps({
                           'assignment': req['assignment'],
                           'users': list(users),
