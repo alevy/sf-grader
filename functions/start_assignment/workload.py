@@ -20,7 +20,7 @@ wave water resonance sun log dream cherry tree fog
 frost voice paper frog smoke star""".split()
 
 def handle(req, syscall):
-    assignments = json.loads(syscall.fs_read('/cos316/assignments'))
+    assignments = json.loads(syscall.read_key(b'cos316/assignments'))
     if req["assignment"] not in assignments:
         return { 'error': 'No such assignment' }
 
@@ -30,7 +30,7 @@ def handle(req, syscall):
         return { 'error': 'This assignment requires a group size of %d, given %d.' % (group_size, len(users)) }
 
     for user in users:
-        repo = syscall.fs_read('/%s/%s' % (user, req["assignment"]));
+        repo = syscall.read_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'));
         if repo:
             return {
                 'error': ("%s is already completing %s at %s" % (user, req['assignment'], repo.decode('utf-8')))
@@ -62,18 +62,15 @@ def handle(req, syscall):
             return { 'error': "Couldn't add user to repository", "status": resp.status }
 
 
-    syscall.workspace_createfile('_meta')
-    syscall.workspace_write('_meta' % name,
+    syscall.write_key(bytes('github/cos316/%s/_meta' % name, 'utf-8'),
                       bytes(json.dumps({
                           'assignment': req['assignment'],
                           'users': list(users),
                       }), 'utf-8'))
-    syscall.fscreate_file('/start_assignment/%s' % name, '_workflow', syscall.get_current_label())
-    syscall.fswrite('/start_assignment/%s/_workflow' % name,
+    syscall.write_key(bytes('github/cos316/%s/_workflow' % name, 'utf-8'),
                       bytes(json.dumps(["go_grader", "grades", "generate_report", "post_comment"]), 'utf-8'))
     for user in users:
-        syscall.fscreate_file('/%s' % user, req['assignment'], syscall.get_current_label())
-        syscall.fswrite('/%s/%s' % (user, req['assignment']),
+        syscall.write_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'),
                           bytes("cos316/%s" % name, 'utf-8'))
 
     return { 'name': name, 'users': list(users), 'github_handles': req['gh_handles'] }
