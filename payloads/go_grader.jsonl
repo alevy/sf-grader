@@ -1,1 +1,1 @@
-{"args": {"submission": "submission.tgz"}, "workflow": [ "grades", "generate_report" ], "context": { "metadata": {"assignment": "example"}}}
+{"args": {"submission": "/gh_repo/user/submission.tgz"}, "workflow": ["grades"], "context": { "metadata": {"assignment": "example"}}}

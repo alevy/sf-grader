@@ -1,26 +1,36 @@
 import os
 import json
 
-def handle(req, syscall):
+def handle(req, data_handles, syscall):
     args = req["args"]
     workflow = req["workflow"]
     context = req["context"]
-    result = app_handle(args, context, syscall)
+    result, data_handles_out = app_handle(args, context, data_handles, syscall)
     if len(workflow) > 0:
         next_function = workflow.pop(0)
         syscall.invoke(next_function, json.dumps({
             "args": result,
             "workflow": workflow,
             "context": context
-        }))
+        }), data_handles_out)
     return result
 
-def app_handle(args, context, syscall):
-    test_lines = [ json.loads(line) for line in syscall.read_key(bytes(args["test_results"], "utf-8")).split(b'\n') ]
+def read_all(opened_blob):
+    buf = bytearray()
+    while True:
+        data = opened_blob.read()
+        if len(data) == 0:
+            return buf
+        buf.extend(data)
+    return buf
+
+def app_handle(args, context, data_handles, syscall):
+    with syscall.open_unnamed(data_handles['test_results']) as blob:
+        test_lines = [ json.loads(line) for line in read_all(blob).split(b'\n') ]
     test_runs = dict((line['test'], line) for line in test_lines if 'test' in line)
 
-    grader_config = "cos316/%s/grader_config" % context["metadata"]["assignment"]
-    config = json.loads(syscall.read_key(bytes(grader_config, "utf-8")))
+    grader_config = "/cos316/%s/grader_config.json" % context["metadata"]["assignment"]
+    config = json.loads(syscall.fs_read(grader_config))
 
     total_points = sum([ test["points"] for test in config["tests"].values() if "extraCredit" not in test or not test["extraCredit"]])
 
@@ -45,10 +55,8 @@ def app_handle(args, context, syscall):
         "push_date": context["push_date"]
     }
 
-    key = os.path.join(os.path.dirname(args["test_results"]),"grade.json")
-    syscall.write_key(bytes(key, "utf-8"), bytes(json.dumps(output), "utf-8"))
+    assignment = context['metadata']['assignment']
+    with syscall.create_unnamed() as blob:
+        handle = blob.finalize(bytes(json.dumps(output), "utf-8"))
 
-    return {
-        "grade": points / total_points,
-        "grade_report": key
-        }
+    return {"grade": points / total_points}, {"grade_report": handle}
