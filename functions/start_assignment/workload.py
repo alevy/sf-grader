@@ -20,7 +20,7 @@ wave water resonance sun log dream cherry tree fog
 frost voice paper frog smoke star""".split()
 
 def handle(req, syscall):
-    assignments = json.loads(syscall.read_key(b'cos316/assignments'))
+    assignments = json.loads(syscall.fs_read('/cos316/assignments'))
     if req["assignment"] not in assignments:
         return { 'error': 'No such assignment' }
 
@@ -30,7 +30,7 @@ def handle(req, syscall):
         return { 'error': 'This assignment requires a group size of %d, given %d.' % (group_size, len(users)) }
 
     for user in users:
-        repo = syscall.read_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'));
+        repo = syscall.fs_read('/cos316/%s/%s' % (req["assignment"], user))
         if repo:
             return {
                 'error': ("%s is already completing %s at %s" % (user, req['assignment'], repo.decode('utf-8')))
@@ -40,7 +40,7 @@ def handle(req, syscall):
     name = None
     for i in range(0, 3):
         name = '-'.join([req["assignment"], random.choice(adjectives), random.choice(nouns)])
-        api_route = "/repos/%s/generate" % (assignments[req["assignment"]]["starter_code"])
+        api_route = "/repos/cos316/%s/generate" % (assignments[req["assignment"]]["starter_code"])
         body = {
                 'owner': 'cos316',
                 'name': name,
@@ -61,16 +61,21 @@ def handle(req, syscall):
         if resp.status > 204:
             return { 'error': "Couldn't add user to repository", "status": resp.status }
 
-
-    syscall.write_key(bytes('github/cos316/%s/_meta' % name, 'utf-8'),
+    github_repo = '/github/cos316/%s' % name
+    syscall.fs_createdir(github_repo)
+    syscall.fs_createfile('%s/_meta' % github_repo)
+    syscall.fs_write('%s/_meta' % github_repo,
                       bytes(json.dumps({
                           'assignment': req['assignment'],
                           'users': list(users),
                       }), 'utf-8'))
-    syscall.write_key(bytes('github/cos316/%s/_workflow' % name, 'utf-8'),
+    syscall.fs_createfile('%s/_workflow' % github_repo)
+    syscall.fs_write('%s/_workflow' % github_repo,
                       bytes(json.dumps(["go_grader", "grades", "generate_report", "post_comment"]), 'utf-8'))
     for user in users:
-        syscall.write_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'),
+        syscall.fs_createdir('/cos316/%s' % req['assignment'])
+        syscall.fs_createfile('/cos316/%s/%s' % (req['assignment'], user))
+        syscall.fs_write('/cos316/%s/%s' % (req['assignment'], user),
                           bytes("cos316/%s" % name, 'utf-8'))
 
     return { 'name': name, 'users': list(users), 'github_handles': req['gh_handles'] }
