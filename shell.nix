@@ -13,9 +13,9 @@
 
 with pkgs;
 let
-  snapfaas = (import snapfaasSrc { inherit pkgs release; }).snapfaas;
+  snapfaas = (import snapfaasSrc { inherit pkgs release; });
 in mkShell {
-  buildInputs = [ lkl snapfaas lmdb gnumake e2fsprogs ];
+  buildInputs = [ lkl snapfaas.snapfaas snapfaas.webhook lmdb gnumake e2fsprogs ];
   shellHook = ''
     # Mark variables which are modified or created for export.
     set -a

@@ -32,14 +32,14 @@ def app_handle(args, state, syscall):
             submission_tar.flush()
             os.mkdir("submission")
             os.system("tar -C submission -xzf %s --strip-components=1" % submission_tar.name)
+            os.putenv("SUBMISSION_DIR", "submission")
             with tempfile.NamedTemporaryFile(suffix=".tar.gz") as script_tar:
                 script_tar_data = syscall.read_key(bytes("cos326/%s/grading_script" % assignment, "utf-8"))
                 script_tar.write(script_tar_data)
                 script_tar.flush()
-                os.mkdir("grader")
-                os.system("tar -C grader -xzf %s" % script_tar.name)
+                os.system("tar -C submission -xzf %s" % script_tar.name)
 
-                compilerun = subprocess.Popen("/srv/usr/bin/ocamlc -I submission str.cma unix.cma utils326.ml submission/*.ml grader/grade.ml", shell=True,
+                compilerun = subprocess.Popen(f"PATH=/srv/usr/bin:{os.environ['PATH']} make -sef submission/Makefile", shell=True,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 compileout, compileerr = compilerun.communicate()
 
@@ -49,5 +49,8 @@ def app_handle(args, state, syscall):
         testrun = subprocess.Popen("/srv/usr/bin/ocamlrun a.out 2>&1", shell=True,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         testout, testerr = testrun.communicate()
-        return { "test_results": testout.decode('utf-8'), "test_stderr": testerr.decode('utf-8') }
+
+        report_key = args['submission'] + "/report"
+        syscall.write_key(report_key.encode('utf-8'), testout)
+        return { "report": report_key, "test_stderr": testerr.decode('utf-8') }
 

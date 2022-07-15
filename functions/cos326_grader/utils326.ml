@@ -1,5 +1,4 @@
 open Printf
-
 (* fst = correct; snd = total possible *)
 type points = (int * int)
 
@@ -48,7 +47,16 @@ let cmp_float (f1:float) (f2:float) : bool =
 
 
 
-  
+(* returns the value associated with var in the process environment or the empty
+ * string if var is unbound *)
+let get_ev (var:string) : string =
+  match Sys.getenv_opt var with
+  | None -> ""
+  | Some v -> v
+
+
+
+ 
 (* given a check and a message, if the check fails print the message.
  * in either case, return the result of the check
 *)

@@ -22,6 +22,12 @@ functions:
     runtimefs: "python3.ext4"
     appfs: "go_grader.img"
     concurrency_limit: 100
+  cos326_grader:
+    vcpus: 1
+    memory: 512
+    runtimefs: "python3.ext4"
+    appfs: "cos326_grader.img"
+    concurrency_limit: 100
   grades:
     vcpus: 1
     memory: 128
