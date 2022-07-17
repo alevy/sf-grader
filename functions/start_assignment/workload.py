@@ -20,17 +20,25 @@ wave water resonance sun log dream cherry tree fog
 frost voice paper frog smoke star""".split()
 
 def handle(req, syscall):
-    assignments = json.loads(syscall.read_key(b'cos316/assignments'))
+    course = req["course"]
+    assignments = json.loads(syscall.read_key(bytes(f'{course}/assignments', "utf-8")))
     if req["assignment"] not in assignments:
         return { 'error': 'No such assignment' }
 
     users = set(req['users'])
-    group_size = (assignment["assignment"]["group_size"] or 1)
+    assignment = assignments[req["assignment"]]
+    enrollment = json.loads(syscall.read_key(bytes(f'{course}/enrollment.json', 'utf-8')) or "{}")
+
+    for user in users:
+        if not enrollment.get(user):
+            return { 'error': 'Only enrolled students may create assignments', 'user': user }
+
+    group_size = (assignment["group_size"] or 1)
     if len(users) != group_size:
         return { 'error': 'This assignment requires a group size of %d, given %d.' % (group_size, len(users)) }
 
     for user in users:
-        repo = syscall.read_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'));
+        repo = syscall.read_key(bytes('%s/assignments/%s/%s' % (course, req["assignment"], user), 'utf-8'));
         if repo:
             return {
                 'error': ("%s is already completing %s at %s" % (user, req['assignment'], repo.decode('utf-8')))
@@ -42,7 +50,7 @@ def handle(req, syscall):
         name = '-'.join([req["assignment"], random.choice(adjectives), random.choice(nouns)])
         api_route = "/repos/%s/generate" % (assignments[req["assignment"]]["starter_code"])
         body = {
-                'owner': 'cos316',
+                'owner': course,
                 'name': name,
                 'private': True
         }
@@ -53,7 +61,7 @@ def handle(req, syscall):
             return { 'error': "Can't find a unique repository name", "status": resp.status }
 
     for user in req['gh_handles']:
-        api_route = "/repos/cos316/%s/collaborators/%s" % (name, user)
+        api_route = "/repos/%s/%s/collaborators/%s" % (course, name, user)
         body = {
             'permission': 'push'
         }
@@ -62,15 +70,15 @@ def handle(req, syscall):
             return { 'error': "Couldn't add user to repository", "status": resp.status }
 
 
-    syscall.write_key(bytes('github/cos316/%s/_meta' % name, 'utf-8'),
+    syscall.write_key(bytes('github/%s/%s/_meta' % (course, name), 'utf-8'),
                       bytes(json.dumps({
                           'assignment': req['assignment'],
                           'users': list(users),
                       }), 'utf-8'))
-    syscall.write_key(bytes('github/cos316/%s/_workflow' % name, 'utf-8'),
+    syscall.write_key(bytes('github/%s/%s/_workflow' % (course, name), 'utf-8'),
                       bytes(json.dumps(["go_grader", "grades", "generate_report", "post_comment"]), 'utf-8'))
     for user in users:
-        syscall.write_key(bytes('cos316/assignments/%s/%s' % (req["assignment"], user), 'utf-8'),
-                          bytes("cos316/%s" % name, 'utf-8'))
+        syscall.write_key(bytes('%s/assignments/%s/%s' % (course, req["assignment"], user), 'utf-8'),
+                          bytes("%s/%s" % (course, name), 'utf-8'))
 
     return { 'name': name, 'users': list(users), 'github_handles': req['gh_handles'] }
