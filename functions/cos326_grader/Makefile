@@ -17,17 +17,17 @@ ocaml-num-%.apk:
 
 out/usr/bin/ocaml: ${OCAML_APK}
 	mkdir -p out
-	tar -C out -xzf $< 2> /dev/null
+	tar -m -C out -xzf $< 2> /dev/null
 
 out/usr/lib/ocaml/stdlib.cma: ${OCAMLRUNTIME_APK}
 	mkdir -p out
-	tar -C out -xzf $< 2> /dev/null
+	tar -m -C out -xzf $< 2> /dev/null
 	echo "/srv/usr/lib/ocaml" > out/usr/lib/ocaml/ld.conf
 	echo "/srv/usr/lib/ocaml/stublibs" >> out/usr/lib/ocaml/ld.conf
 
 out/usr/lib/ocaml/nums.cma: ${OCAMLNUM_APK}
 	mkdir -p out
-	tar -C out -xzf $< 2> /dev/null
+	tar -m -C out -xzf $< 2> /dev/null
 	mv out/usr/lib/ocaml/num/[a-z]* out/usr/lib/ocaml
 	sed '/^package/a \ \ directory = "^"' out/usr/lib/ocaml/num/META > META
 	mv META out/usr/lib/ocaml/num/META
