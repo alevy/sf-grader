@@ -18,16 +18,16 @@ output/%.img: functions/%/*
 	@e2fsck -f $@
 	@resize2fs -M $@
 
-output/%.tgz: %/*
-	tar -C $* -czf $@ .
+output/%.tgz: examples/%/*
+	tar -C examples/$* -czf $@ .
 
-output/%_submission.tgz: %_submission/*
-	tar -czf $@ $*_submission/
+output/%_submission.tgz: examples/%_submission/*
+	tar -C examples -czf $@ $*_submission/
 
 .PHONY: prepdb
-prepdb: output/example_316_grader.tgz output/example_316_submission.tgz output/example_cos326_submission.tgz output/example_cos326_grader.tgz
-	sfdb -b cos316/example/grading_script - < output/example_316_grader.tgz
-	sfdb -b github/cos316/example/submission.tgz - < output/example_316_submission.tgz
+prepdb: output/example_cos316_grader.tgz output/example_cos316_submission.tgz output/example_cos326_submission.tgz output/example_cos326_grader.tgz
+	sfdb -b cos316/example/grading_script - < output/example_cos316_grader.tgz
+	sfdb -b github/cos316/example/submission.tgz - < output/example_cos316_submission.tgz
 	sfdb -b cos326/example/grading_script - < output/example_cos326_grader.tgz
 	sfdb -b github/cos326/example/submission.tgz - < output/example_cos326_submission.tgz
 
