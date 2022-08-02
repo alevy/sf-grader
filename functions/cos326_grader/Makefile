@@ -1,4 +1,4 @@
-SOURCES=workload.py utils326.ml
+SOURCES=workload.py utils326.ml precheck
 
 OCAML_APK=ocaml-4.14.0-r0.apk
 OCAMLBUILD_APK=ocamlbuild-0.14.1-r1.apk
@@ -32,8 +32,9 @@ out/usr/lib/ocaml/nums.cma: ${OCAMLNUM_APK}
 	sed '/^package/a \ \ directory = "^"' out/usr/lib/ocaml/num/META > META
 	mv META out/usr/lib/ocaml/num/META
 	mv out/usr/lib/ocaml/num-top/n* out/usr/lib/ocaml
+	rm -rf out/usr/lib/num out/usr/lib/num-top
 	mv out/usr/lib/ocaml/num out/usr/lib/ocaml/num-top out/usr/lib
 
-out: ${SOURCES} out/usr/bin/ocaml out/usr/lib/ocaml/stdlib.cma out/usr/lib/ocaml/nums.cma 
+out: ${SOURCES} out/usr/bin/ocaml out/usr/lib/ocaml/stdlib.cma out/usr/lib/ocaml/nums.cma
 	mkdir -p out
 	cp ${SOURCES} out

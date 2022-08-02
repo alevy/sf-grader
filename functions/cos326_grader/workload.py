@@ -34,6 +34,7 @@ def app_handle(args, state, syscall):
     syscall : Syscall object
     """
     assignment = state["metadata"]["assignment"]
+    report_key = f"github/{state['repository']}/{state['commit']}/report"
     # Assignment definitions are under {github org}/assignments as a JSON string
     # that includes a "grading_script" key for each assignment
     assignments_def = json.loads(syscall.read_key(bytes(f'{state["repository"].split("/")[0]}/assignments', 'utf-8')).decode('utf8'))
@@ -42,8 +43,8 @@ def app_handle(args, state, syscall):
 
     with tempfile.TemporaryDirectory() as workdir:
         shutil.copy("/srv/utils326.ml", workdir)
+        shutil.copy("/srv/precheck", workdir)
         os.chdir(workdir)
-        os.putenv("OCAMLLIB", "/srv/usr/lib/ocaml")
 
         with syscall.open_unnamed(args["submission"]) as submission_tar_file:
             os.mkdir("submission")
@@ -54,10 +55,10 @@ def app_handle(args, state, syscall):
                 bs = submission_tar_file.read()
             tarp.stdin.close()
             tarp.communicate()
-        os.system("ls submission")
-        os.putenv("SUBMISSION_DIR", "submission")
+            os.system("ls submission")
 
         with syscall.open_unnamed(grading_script) as grading_script_tar_file:
+            os.mkdir("grader")
             tarp = subprocess.Popen("tar -C submission -xz", shell=True, stdin=subprocess.PIPE)
             bs = grading_script_tar_file.read()
             while len(bs) > 0:
@@ -65,19 +66,32 @@ def app_handle(args, state, syscall):
                 bs = grading_script_tar_file.read()
             tarp.stdin.close()
             tarp.communicate()
-            os.system("ls submission")
+            os.system("ls grader")
 
-        compilerun = subprocess.Popen(f"PATH=/srv/usr/bin:{os.environ['PATH']} make -sef submission/Makefile", shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        compileout, compileerr = compilerun.communicate()
+        # set up environment variables
+        os.putenv("OCAMLLIB", "/srv/usr/lib/ocaml")
+        os.putenv("PATH", f"/srv/usr/bin:{os.getenv('PATH')}")
+        os.putenv("GRADER", "grader")
+        os.putenv("SUBMISSION_DIR", "submission")
 
+        # ensure preliminary checks pass
+        checkrun = subprocess.Popen("./precheck", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        checkout, _ = checkrun.communicate()
+        if checkrun.returncode != 0:
+            syscall.write_key(bytes(report_key, "utf-8"), checkout)
+            return { "report": report_key }
+
+        # compile grading executable
+        os.system("cp grader/* submission")
+        compilerun = subprocess.Popen("make -sef submission/Makefile", shell=True,
+                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        compileout, _ = compilerun.communicate()
         if compilerun.returncode != 0:
-            return { "error": { "compile": compileerr.decode("utf-8"), "returncode": compilerun.returncode } }
+            syscall.write_key(bytes(report_key, "utf-8"), b"\n".join([b"```", compileout, b"```"]))
+            return { "report": report_key }
 
-        testrun = subprocess.Popen("/srv/usr/bin/ocamlrun a.out 2>&1", shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        testout, testerr = testrun.communicate()
-
-        report_key = f"github/{state['repository']}/{state['commit']}/report"
-        syscall.write_key(report_key.encode('utf-8'), testout)
-        return { "report": report_key, "test_stderr": testerr.decode('utf-8') }
+        # run tests
+        testrun = subprocess.Popen("ocamlrun a.out", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        testout, _ = testrun.communicate()
+        syscall.write_key(bytes(report_key, "utf-8"), testout)
+        return { "report": report_key }
