@@ -76,7 +76,7 @@ def handle(req, syscall):
                           'users': list(users),
                       }), 'utf-8'))
     syscall.write_key(bytes('github/%s/%s/_workflow' % (course, name), 'utf-8'),
-                      bytes(json.dumps(["go_grader", "grades", "generate_report", "post_comment"]), 'utf-8'))
+                      bytes(json.dumps(f'{course}/{req["assignment"]}/_workflow'), 'utf-8'))
     for user in users:
         syscall.write_key(bytes('%s/assignments/%s/%s' % (course, req["assignment"], user), 'utf-8'),
                           bytes("%s/%s" % (course, name), 'utf-8'))

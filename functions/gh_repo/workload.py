@@ -13,6 +13,8 @@ def handle(req, syscall):
     if metadataString:
         metadata = json.loads(metadataString)
         workflow = json.loads(syscall.read_key(bytes(workflow_key, "utf-8")) or "[]")
+        while isinstance(workflow, str):
+            workflow = json.loads(syscall.read_key(bytes(workflow, "utf-8")) or "[]")
 
         resp = syscall.github_rest_get("/repos/%s/tarball/%s" % (req["repository"]["full_name"], req["after"]), toblob=True);
         syscall.write_key(bytes(key, "utf-8"), resp.data)
